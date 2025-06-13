@@ -17,6 +17,13 @@ export interface GroupExpense {
   splitBetween: string[];
   date: string;
   category: string;
+  paymentMode: string;
+  // New field to track multiple payers
+  multiplePayments?: {
+    memberId: string;
+    amount: number;
+    paymentMode: string;
+  }[];
 }
 
 export interface Member {

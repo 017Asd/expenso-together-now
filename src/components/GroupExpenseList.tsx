@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Users } from 'lucide-react';
+import { Trash2, Users, CreditCard } from 'lucide-react';
 import { GroupExpense, Member } from '@/types/expense';
 
 interface GroupExpenseListProps {
@@ -42,9 +42,32 @@ const GroupExpenseList: React.FC<GroupExpenseListProps> = ({ expenses, members, 
                 </div>
                 
                 <div className="text-sm text-gray-600 space-y-1">
-                  <div>
-                    <span className="font-medium">Paid by:</span> {getMemberName(expense.paidBy)}
-                  </div>
+                  {expense.multiplePayments ? (
+                    <div>
+                      <span className="font-medium">Paid by multiple people:</span>
+                      <div className="ml-2 mt-1 space-y-1">
+                        {expense.multiplePayments.map((payment, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <span>{getMemberName(payment.memberId)}</span>
+                            <span>₹{payment.amount.toFixed(2)}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              <CreditCard className="w-3 h-3 mr-1" />
+                              {payment.paymentMode}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium">Paid by:</span> 
+                      <span>{getMemberName(expense.paidBy)}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        <CreditCard className="w-3 h-3 mr-1" />
+                        {expense.paymentMode}
+                      </Badge>
+                    </div>
+                  )}
                   <div>
                     <span className="font-medium">Date:</span> {expense.date}
                   </div>

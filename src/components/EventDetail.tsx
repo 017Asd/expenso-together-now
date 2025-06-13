@@ -19,6 +19,16 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onUpdate, onBack }) =>
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [showSettlement, setShowSettlement] = useState(false);
 
+  // Get personal expenses from localStorage
+  const getPersonalExpenses = () => {
+    try {
+      const stored = localStorage.getItem('personal-expenses');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
   const addExpense = (expense: Omit<GroupExpense, 'id'>) => {
     const newExpense: GroupExpense = {
       ...expense,
@@ -53,7 +63,14 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onUpdate, onBack }) =>
 
     // Calculate what each person paid
     event.expenses.forEach(expense => {
-      memberBalances[expense.paidBy] += expense.amount;
+      if (expense.multiplePayments) {
+        // Handle multiple payments
+        expense.multiplePayments.forEach(payment => {
+          memberBalances[payment.memberId] += payment.amount;
+        });
+      } else {
+        memberBalances[expense.paidBy] += expense.amount;
+      }
     });
 
     // Calculate what each person owes
@@ -214,6 +231,7 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onUpdate, onBack }) =>
         onClose={() => setIsAddExpenseModalOpen(false)}
         onAdd={addExpense}
         members={event.members}
+        personalExpenses={getPersonalExpenses()}
       />
     </div>
   );
