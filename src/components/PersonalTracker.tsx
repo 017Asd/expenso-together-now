@@ -37,6 +37,12 @@ const PersonalTracker = () => {
     setExpenses(prev => prev.filter(expense => expense.id !== id));
   };
 
+  const editExpense = (updatedExpense: Expense) => {
+    setExpenses(prev => prev.map(expense => 
+      expense.id === updatedExpense.id ? updatedExpense : expense
+    ));
+  };
+
   // Calculate totals
   const totalIncome = expenses
     .filter(e => e.type === 'income')
@@ -135,6 +141,7 @@ const PersonalTracker = () => {
           <ExpenseList 
             expenses={expenses.slice(0, 10)} 
             onDelete={deleteExpense}
+            onEdit={editExpense}
           />
         </CardContent>
       </Card>

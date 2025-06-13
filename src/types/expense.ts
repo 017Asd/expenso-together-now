@@ -7,6 +7,10 @@ export interface Expense {
   description: string;
   date: string;
   paymentMode: string;
+  splitInfo?: {
+    totalPeople: number;
+    amountPerPerson: number;
+  };
 }
 
 export interface GroupExpense {

@@ -1,18 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Expense } from '@/types/expense';
 
-interface AddExpenseModalProps {
+interface EditExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (expense: Omit<Expense, 'id'>) => void;
+  onEdit: (expense: Expense) => void;
+  expense: Expense | null;
 }
 
 const predefinedCategories = [
@@ -28,46 +28,56 @@ const predefinedCategories = [
   'Investment'
 ];
 
-const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAdd }) => {
+const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ isOpen, onClose, onEdit, expense }) => {
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
     amount: '',
     category: '',
     description: '',
-    date: new Date().toISOString().split('T')[0],
+    date: '',
     paymentMode: ''
   });
 
-  const [isForSplit, setIsForSplit] = useState(false);
-  const [splitPeople, setSplitPeople] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
+
+  useEffect(() => {
+    if (expense) {
+      setFormData({
+        type: expense.type,
+        amount: expense.amount.toString(),
+        category: expense.category,
+        description: expense.description,
+        date: expense.date,
+        paymentMode: expense.paymentMode
+      });
+
+      const isPredefined = predefinedCategories.includes(expense.category);
+      setIsCustomCategory(!isPredefined);
+      if (!isPredefined) {
+        setCustomCategory(expense.category);
+      }
+    }
+  }, [expense]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.amount || !getSelectedCategory() || !formData.paymentMode) {
+    if (!expense || !formData.amount || !getSelectedCategory() || !formData.paymentMode) {
       return;
     }
 
-    const expense = {
+    const updatedExpense: Expense = {
+      ...expense,
       type: formData.type,
       amount: parseFloat(formData.amount),
       category: getSelectedCategory(),
       description: formData.description,
       date: formData.date,
-      paymentMode: formData.paymentMode,
-      // Add split information if applicable
-      ...(isForSplit && splitPeople && {
-        splitInfo: {
-          totalPeople: parseInt(splitPeople),
-          amountPerPerson: parseFloat(formData.amount) / parseInt(splitPeople)
-        }
-      })
+      paymentMode: formData.paymentMode
     };
 
-    onAdd(expense);
-    resetForm();
+    onEdit(updatedExpense);
     onClose();
   };
 
@@ -75,26 +85,13 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
     return isCustomCategory ? customCategory : formData.category;
   };
 
-  const resetForm = () => {
-    setFormData({
-      type: 'expense',
-      amount: '',
-      category: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-      paymentMode: ''
-    });
-    setIsForSplit(false);
-    setSplitPeople('');
-    setIsCustomCategory(false);
-    setCustomCategory('');
-  };
+  if (!expense) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Transaction</DialogTitle>
+          <DialogTitle>Edit Transaction</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -204,46 +201,12 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
             </div>
           </div>
 
-          {formData.type === 'expense' && (
-            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="for-split"
-                  checked={isForSplit}
-                  onCheckedChange={(checked) => setIsForSplit(checked === true)}
-                />
-                <Label htmlFor="for-split">This expense is for splitting</Label>
-              </div>
-              
-              {isForSplit && (
-                <div>
-                  <Label htmlFor="split-people">Number of people to split between</Label>
-                  <Input
-                    id="split-people"
-                    type="number"
-                    min="2"
-                    max="20"
-                    value={splitPeople}
-                    onChange={(e) => setSplitPeople(e.target.value)}
-                    placeholder="Enter number of people"
-                    required={isForSplit}
-                  />
-                  {splitPeople && formData.amount && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      Amount per person: ₹{(parseFloat(formData.amount) / parseInt(splitPeople)).toFixed(2)}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit">
-              Add Transaction
+              Update Transaction
             </Button>
           </div>
         </form>
@@ -252,4 +215,4 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
   );
 };
 
-export default AddExpenseModal;
+export default EditExpenseModal;
