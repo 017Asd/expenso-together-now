@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -121,6 +120,14 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onUpdate, onBack }) =>
     return settlements;
   };
 
+  const handleClearSettlements = () => {
+    // This could be used to update the event state or trigger any additional logic
+    // For now, we'll just log that settlements were cleared
+    console.log('Settlements cleared for event:', event.name);
+    // You could add additional logic here, like updating the event in localStorage
+    // or marking it as settled in the database
+  };
+
   const totalAmount = event.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const averagePerPerson = event.members.length > 0 ? totalAmount / event.members.length : 0;
 
@@ -130,6 +137,7 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onUpdate, onBack }) =>
         event={event}
         settlements={calculateSettlements()}
         onBack={() => setShowSettlement(false)}
+        onClearSettlements={handleClearSettlements}
       />
     );
   }
