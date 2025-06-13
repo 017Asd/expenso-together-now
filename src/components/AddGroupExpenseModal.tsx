@@ -83,9 +83,10 @@ const AddGroupExpenseModal: React.FC<AddGroupExpenseModalProps> = ({
     });
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    setSelectAll(checked);
-    setSelectedMembers(checked ? members.map(m => m.id) : []);
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+    const isChecked = checked === true;
+    setSelectAll(isChecked);
+    setSelectedMembers(isChecked ? members.map(m => m.id) : []);
   };
 
   const addMultiplePayment = () => {
@@ -227,7 +228,7 @@ const AddGroupExpenseModal: React.FC<AddGroupExpenseModalProps> = ({
             <Checkbox
               id="multiple-payments"
               checked={useMultiplePayments}
-              onCheckedChange={setUseMultiplePayments}
+              onCheckedChange={(checked) => setUseMultiplePayments(checked === true)}
             />
             <Label htmlFor="multiple-payments">Multiple people paid separately</Label>
           </div>
