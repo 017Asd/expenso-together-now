@@ -54,21 +54,33 @@ const SettlementView: React.FC<SettlementViewProps> = ({
   const calculateMemberSummary = () => {
     const summary: Record<string, { paid: number; owes: number; balance: number }> = {};
     
-    // Initialize
+    // Initialize all members with zero values
     event.members.forEach(member => {
       summary[member.id] = { paid: 0, owes: 0, balance: 0 };
     });
 
     // Calculate what each person paid
     event.expenses.forEach(expense => {
-      summary[expense.paidBy].paid += expense.amount;
+      if (expense.multiplePayments) {
+        // Handle multiple payments
+        expense.multiplePayments.forEach(payment => {
+          if (summary[payment.memberId]) {
+            summary[payment.memberId].paid += payment.amount;
+          }
+        });
+      } else if (expense.paidBy && summary[expense.paidBy]) {
+        // Handle single payer - only add if paidBy exists and is in summary
+        summary[expense.paidBy].paid += expense.amount;
+      }
     });
 
     // Calculate what each person owes
     event.expenses.forEach(expense => {
       const sharePerPerson = expense.amount / expense.splitBetween.length;
       expense.splitBetween.forEach(memberId => {
-        summary[memberId].owes += sharePerPerson;
+        if (summary[memberId]) {
+          summary[memberId].owes += sharePerPerson;
+        }
       });
     });
 
