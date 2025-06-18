@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -63,6 +62,9 @@ const AddGroupExpenseModal: React.FC<AddGroupExpenseModalProps> = ({
   }[]>([]);
   const [useMultiplePayments, setUseMultiplePayments] = useState(false);
   const [selectedPersonalExpense, setSelectedPersonalExpense] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
 
   // Initialize with all members selected
   React.useEffect(() => {
@@ -117,6 +119,27 @@ const AddGroupExpenseModal: React.FC<AddGroupExpenseModalProps> = ({
       setSelectedPersonalExpense(expenseId);
     }
   };
+
+  const handleAddCustomCategory = () => {
+    if (customCategory.trim() && !categories.includes(customCategory.trim()) && !customCategories.includes(customCategory.trim())) {
+      const newCategory = customCategory.trim();
+      setCustomCategories(prev => [...prev, newCategory]);
+      setFormData(prev => ({ ...prev, category: newCategory }));
+      setCustomCategory('');
+      setShowAddCategory(false);
+    }
+  };
+
+  const handleCategorySelect = (value: string) => {
+    if (value === 'add-new') {
+      setShowAddCategory(true);
+    } else {
+      setFormData(prev => ({ ...prev, category: value }));
+      setShowAddCategory(false);
+    }
+  };
+
+  const allCategories = [...categories, ...customCategories];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -340,20 +363,49 @@ const AddGroupExpenseModal: React.FC<AddGroupExpenseModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => 
-                setFormData(prev => ({ ...prev, category: value }))
-              }>
+              <Select value={formData.category} onValueChange={handleCategorySelect}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(category => (
+                  {allCategories.map(category => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
                   ))}
+                  <SelectItem value="add-new">
+                    <div className="flex items-center">
+                      <Plus className="w-3 h-3 mr-2" />
+                      Add New Category
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              
+              {showAddCategory && (
+                <div className="mt-2 flex items-center space-x-2">
+                  <Input
+                    placeholder="Enter new category"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddCustomCategory()}
+                  />
+                  <Button type="button" size="sm" onClick={handleAddCustomCategory}>
+                    Add
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setShowAddCategory(false);
+                      setCustomCategory('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
             </div>
             <div>
               <Label htmlFor="date">Date</Label>
