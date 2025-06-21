@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, ArrowRight, Share2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Share2, CheckCircle, FileText } from 'lucide-react';
 import { GroupEvent, Settlement } from '@/types/expense';
+import jsPDF from 'jspdf';
 
 interface SettlementViewProps {
   event: GroupEvent;
@@ -24,6 +24,115 @@ const SettlementView: React.FC<SettlementViewProps> = ({
 
   const getMemberName = (memberId: string) => {
     return event.members.find(m => m.id === memberId)?.name || 'Unknown';
+  };
+
+  const generatePDF = () => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.width;
+    let yPosition = 20;
+
+    // Title
+    pdf.setFontSize(20);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${event.name} - Settlement Summary`, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 20;
+
+    // Date
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 20;
+
+    // Event Summary
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Event Summary', 20, yPosition);
+    yPosition += 10;
+
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    const totalAmount = event.expenses.reduce((sum, e) => sum + e.amount, 0);
+    pdf.text(`Total Expenses: ₹${totalAmount.toLocaleString()}`, 20, yPosition);
+    yPosition += 5;
+    pdf.text(`Total Transactions: ${event.expenses.length}`, 20, yPosition);
+    yPosition += 5;
+    pdf.text(`Settlements Needed: ${isSettlementCleared ? 0 : settlements.length}`, 20, yPosition);
+    yPosition += 15;
+
+    // Members
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Members', 20, yPosition);
+    yPosition += 10;
+
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    event.members.forEach(member => {
+      pdf.text(`• ${member.name}${member.email ? ` (${member.email})` : ''}`, 25, yPosition);
+      yPosition += 5;
+    });
+    yPosition += 10;
+
+    // Member Summary
+    const memberSummary = calculateMemberSummary();
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Member Summary', 20, yPosition);
+    yPosition += 10;
+
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    event.members.forEach(member => {
+      const data = memberSummary[member.id];
+      const isOwed = data.balance > 0;
+      const owes = data.balance < 0;
+      const isSettled = Math.abs(data.balance) < 0.01 || isSettlementCleared;
+      
+      pdf.text(`${member.name}:`, 25, yPosition);
+      yPosition += 5;
+      pdf.text(`  Paid: ₹${data.paid.toFixed(2)} | Owes: ₹${data.owes.toFixed(2)}`, 30, yPosition);
+      yPosition += 5;
+      
+      if (isSettled) {
+        pdf.text(`  Status: All settled`, 30, yPosition);
+      } else if (isOwed) {
+        pdf.text(`  Gets back: ₹${data.balance.toFixed(2)}`, 30, yPosition);
+      } else if (owes) {
+        pdf.text(`  Owes: ₹${Math.abs(data.balance).toFixed(2)}`, 30, yPosition);
+      }
+      yPosition += 8;
+    });
+
+    // Settlements
+    if (settlements.length > 0 && !isSettlementCleared) {
+      yPosition += 5;
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Required Settlements', 20, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      settlements.forEach((settlement, index) => {
+        pdf.text(`${index + 1}. ${getMemberName(settlement.from)} → ${getMemberName(settlement.to)}: ₹${settlement.amount.toFixed(2)}`, 25, yPosition);
+        yPosition += 6;
+      });
+    } else {
+      yPosition += 5;
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('All Settled!', 20, yPosition);
+      yPosition += 10;
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(isSettlementCleared 
+        ? "All settlements have been marked as completed."
+        : "No money needs to be exchanged between members.", 25, yPosition);
+    }
+
+    // Save the PDF
+    pdf.save(`${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_settlement.pdf`);
   };
 
   const generateShareableLink = () => {
@@ -109,10 +218,16 @@ const SettlementView: React.FC<SettlementViewProps> = ({
                 <p className="text-gray-600">{event.name}</p>
               </div>
             </div>
-            <Button onClick={generateShareableLink} variant="outline">
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
+            <div className="flex space-x-2">
+              <Button onClick={generatePDF} variant="outline">
+                <FileText className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
+              <Button onClick={generateShareableLink} variant="outline">
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+            </div>
           </div>
         </CardHeader>
       </Card>
