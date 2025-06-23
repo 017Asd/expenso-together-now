@@ -29,110 +29,210 @@ const SettlementView: React.FC<SettlementViewProps> = ({
   const generatePDF = () => {
     const pdf = new jsPDF();
     const pageWidth = pdf.internal.pageSize.width;
+    const pageHeight = pdf.internal.pageSize.height;
     let yPosition = 20;
 
+    const addNewPageIfNeeded = (requiredSpace: number) => {
+      if (yPosition + requiredSpace > pageHeight - 20) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+    };
+
     // Title
-    pdf.setFontSize(20);
+    pdf.setFontSize(22);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(`${event.name} - Settlement Summary`, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 20;
-
-    // Date
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 20;
-
-    // Event Summary
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Event Summary', 20, yPosition);
+    pdf.text(`${event.name}`, pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 10;
+    
+    pdf.setFontSize(16);
+    pdf.text('Detailed Expense Report', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 20;
 
+    // Date and generation info
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
-    const totalAmount = event.expenses.reduce((sum, e) => sum + e.amount, 0);
-    pdf.text(`Total Expenses: ₹${totalAmount.toLocaleString()}`, 20, yPosition);
-    yPosition += 5;
-    pdf.text(`Total Transactions: ${event.expenses.length}`, 20, yPosition);
-    yPosition += 5;
-    pdf.text(`Settlements Needed: ${isSettlementCleared ? 0 : settlements.length}`, 20, yPosition);
+    pdf.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 25;
+
+    // Event Overview
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Event Overview', 20, yPosition);
     yPosition += 15;
 
-    // Members
-    pdf.setFontSize(14);
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    const totalAmount = event.expenses.reduce((sum, e) => sum + e.amount, 0);
+    pdf.text(`Event Name: ${event.name}`, 25, yPosition);
+    yPosition += 6;
+    if (event.description) {
+      pdf.text(`Description: ${event.description}`, 25, yPosition);
+      yPosition += 6;
+    }
+    pdf.text(`Total Amount Spent: ₹${totalAmount.toLocaleString()}`, 25, yPosition);
+    yPosition += 6;
+    pdf.text(`Number of Expenses: ${event.expenses.length}`, 25, yPosition);
+    yPosition += 6;
+    pdf.text(`Number of Members: ${event.members.length}`, 25, yPosition);
+    yPosition += 6;
+    pdf.text(`Date Created: ${new Date(event.createdAt).toLocaleDateString()}`, 25, yPosition);
+    yPosition += 20;
+
+    // Members List
+    addNewPageIfNeeded(40);
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
     pdf.text('Members', 20, yPosition);
-    yPosition += 10;
+    yPosition += 15;
 
-    pdf.setFontSize(10);
+    pdf.setFontSize(11);
     pdf.setFont('helvetica', 'normal');
-    event.members.forEach(member => {
-      pdf.text(`• ${member.name}${member.email ? ` (${member.email})` : ''}`, 25, yPosition);
-      yPosition += 5;
+    event.members.forEach((member, index) => {
+      pdf.text(`${index + 1}. ${member.name}${member.email ? ` (${member.email})` : ''}`, 25, yPosition);
+      yPosition += 6;
     });
-    yPosition += 10;
+    yPosition += 15;
 
-    // Member Summary
-    const memberSummary = calculateMemberSummary();
-    pdf.setFontSize(14);
+    // Detailed Expense List
+    addNewPageIfNeeded(40);
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Member Summary', 20, yPosition);
-    yPosition += 10;
+    pdf.text('Detailed Expense Breakdown', 20, yPosition);
+    yPosition += 15;
 
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
+    event.expenses.forEach((expense, index) => {
+      addNewPageIfNeeded(60);
+      
+      // Expense header
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`${index + 1}. ${expense.description}`, 25, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      
+      // Basic expense info
+      pdf.text(`Amount: ₹${expense.amount.toLocaleString()}`, 30, yPosition);
+      yPosition += 5;
+      pdf.text(`Category: ${expense.category}`, 30, yPosition);
+      yPosition += 5;
+      pdf.text(`Date: ${expense.date}`, 30, yPosition);
+      yPosition += 5;
+
+      // Payment information
+      if (expense.multiplePayments) {
+        pdf.text('Paid by Multiple People:', 30, yPosition);
+        yPosition += 5;
+        expense.multiplePayments.forEach(payment => {
+          pdf.text(`  • ${getMemberName(payment.memberId)}: ₹${payment.amount.toFixed(2)} (${payment.paymentMode})`, 35, yPosition);
+          yPosition += 5;
+        });
+      } else {
+        pdf.text(`Paid by: ${getMemberName(expense.paidBy)}`, 30, yPosition);
+        yPosition += 5;
+        pdf.text(`Payment Mode: ${expense.paymentMode}`, 30, yPosition);
+        yPosition += 5;
+      }
+
+      // Split information
+      const sharePerPerson = expense.amount / expense.splitBetween.length;
+      pdf.text(`Split among ${expense.splitBetween.length} members (₹${sharePerPerson.toFixed(2)} each):`, 30, yPosition);
+      yPosition += 5;
+      
+      expense.splitBetween.forEach(memberId => {
+        pdf.text(`  • ${getMemberName(memberId)}: ₹${sharePerPerson.toFixed(2)}`, 35, yPosition);
+        yPosition += 5;
+      });
+      
+      yPosition += 8;
+    });
+
+    // Member Financial Summary
+    addNewPageIfNeeded(60);
+    const memberSummary = calculateMemberSummary();
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Member Financial Summary', 20, yPosition);
+    yPosition += 15;
+
     event.members.forEach(member => {
+      addNewPageIfNeeded(25);
       const data = memberSummary[member.id];
       const isOwed = data.balance > 0;
       const owes = data.balance < 0;
       const isSettled = Math.abs(data.balance) < 0.01 || isSettlementCleared;
       
-      pdf.text(`${member.name}:`, 25, yPosition);
-      yPosition += 5;
-      pdf.text(`  Paid: ₹${data.paid.toFixed(2)} | Owes: ₹${data.owes.toFixed(2)}`, 30, yPosition);
-      yPosition += 5;
-      
-      if (isSettled) {
-        pdf.text(`  Status: All settled`, 30, yPosition);
-      } else if (isOwed) {
-        pdf.text(`  Gets back: ₹${data.balance.toFixed(2)}`, 30, yPosition);
-      } else if (owes) {
-        pdf.text(`  Owes: ₹${Math.abs(data.balance).toFixed(2)}`, 30, yPosition);
-      }
-      yPosition += 8;
-    });
-
-    // Settlements
-    if (settlements.length > 0 && !isSettlementCleared) {
-      yPosition += 5;
-      pdf.setFontSize(14);
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Required Settlements', 20, yPosition);
-      yPosition += 10;
-
+      pdf.text(`${member.name}`, 25, yPosition);
+      yPosition += 8;
+      
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      settlements.forEach((settlement, index) => {
-        pdf.text(`${index + 1}. ${getMemberName(settlement.from)} → ${getMemberName(settlement.to)}: ₹${settlement.amount.toFixed(2)}`, 25, yPosition);
-        yPosition += 6;
-      });
-    } else {
+      pdf.text(`Total Paid: ₹${data.paid.toFixed(2)}`, 30, yPosition);
       yPosition += 5;
+      pdf.text(`Total Share: ₹${data.owes.toFixed(2)}`, 30, yPosition);
+      yPosition += 5;
+      pdf.text(`Net Balance: ₹${data.balance.toFixed(2)}`, 30, yPosition);
+      yPosition += 5;
+      
+      pdf.setFont('helvetica', 'bold');
+      if (isSettled) {
+        pdf.text('Status: ✓ All Settled', 30, yPosition);
+      } else if (isOwed) {
+        pdf.text(`Status: Gets back ₹${data.balance.toFixed(2)}`, 30, yPosition);
+      } else if (owes) {
+        pdf.text(`Status: Owes ₹${Math.abs(data.balance).toFixed(2)}`, 30, yPosition);
+      }
+      yPosition += 12;
+    });
+
+    // Settlement Instructions
+    addNewPageIfNeeded(40);
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Settlement Instructions', 20, yPosition);
+    yPosition += 15;
+
+    if (settlements.length === 0 || isSettlementCleared) {
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('All Settled!', 20, yPosition);
+      pdf.text('🎉 All Settled!', 25, yPosition);
       yPosition += 10;
       
-      pdf.setFontSize(10);
+      pdf.setFontSize(11);
       pdf.setFont('helvetica', 'normal');
       pdf.text(isSettlementCleared 
         ? "All settlements have been marked as completed."
         : "No money needs to be exchanged between members.", 25, yPosition);
+    } else {
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('The following settlements need to be made to balance all accounts:', 25, yPosition);
+      yPosition += 10;
+
+      settlements.forEach((settlement, index) => {
+        addNewPageIfNeeded(8);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`${index + 1}. ${getMemberName(settlement.from)} → ${getMemberName(settlement.to)}`, 25, yPosition);
+        yPosition += 5;
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`    Amount: ₹${settlement.amount.toFixed(2)}`, 25, yPosition);
+        yPosition += 8;
+      });
     }
 
+    // Footer
+    addNewPageIfNeeded(20);
+    yPosition = pageHeight - 15;
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'italic');
+    pdf.text('Generated by Expense Tracker App', pageWidth / 2, yPosition, { align: 'center' });
+
     // Save the PDF
-    pdf.save(`${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_settlement.pdf`);
+    pdf.save(`${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_detailed_report.pdf`);
   };
 
   const generateShareableLink = () => {
@@ -221,7 +321,7 @@ const SettlementView: React.FC<SettlementViewProps> = ({
             <div className="flex space-x-2">
               <Button onClick={generatePDF} variant="outline">
                 <FileText className="w-4 h-4 mr-2" />
-                Download PDF
+                Download Detailed PDF
               </Button>
               <Button onClick={generateShareableLink} variant="outline">
                 <Share2 className="w-4 h-4 mr-2" />
